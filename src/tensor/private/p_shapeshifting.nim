@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import  ../../private/sequninit,
+import ../../private/sequninit,
         ../backend/metadataArray,
         ../data_structure, ../higher_order_applymap,
         ../init_cpu,
         ./p_init_cpu,
         ./p_checks,
-        nimblas
+        nimblas,
+        sets,
+        sequtils
 
 proc contiguousImpl*[T](t: Tensor[T], layout: OrderType, result: var Tensor[T]) =
   if layout == rowMajor:
@@ -29,16 +31,19 @@ proc contiguousImpl*[T](t: Tensor[T], layout: OrderType, result: var Tensor[T]) 
     apply2_inline(result, t):
       y
 
-proc reshape_with_copy*[T](t: Tensor[T], new_shape: varargs[int]|MetadataArray, result: var Tensor[T]) =
+proc reshape_with_copy*[T](t: Tensor[T], new_shape: varargs[int]|MetadataArray,
+    result: var Tensor[T]) =
   result = newTensorUninit[T](new_shape)
-  result.apply2_inline(t,y)
+  result.apply2_inline(t, y)
 
-proc reshape_no_copy*(t: AnyTensor, new_shape: varargs[int]|MetadataArray, result: var AnyTensor, layout: OrderType) {.noSideEffect.}=
+proc reshape_no_copy*(t: AnyTensor, new_shape: varargs[int]|MetadataArray,
+    result: var AnyTensor, layout: OrderType) {.noSideEffect.} =
   result.shape.copyFrom(new_shape)
   shape_to_strides(result.shape, layout, result.strides)
   result.offset = t.offset
 
-proc reshapeImpl*(t: AnyTensor, new_shape: varargs[int]|MetadataArray, result: var AnyTensor) =
+proc reshapeImpl*(t: AnyTensor, new_shape: varargs[int]|MetadataArray,
+    result: var AnyTensor) =
   when compileOption("boundChecks"):
     when new_shape is MetadataArray:
       check_reshape(t, new_shape)
@@ -54,7 +59,8 @@ proc reshapeImpl*(t: AnyTensor, new_shape: varargs[int]|MetadataArray, result: v
   else:
     reshape_with_copy(t, new_shape, result)
 
-proc broadcastImpl*(t: var AnyTensor, shape: varargs[int]|MetadataArray) {.noSideEffect.}=
+proc broadcastImpl*(t: var AnyTensor, shape: varargs[int]|MetadataArray) {.
+    noSideEffect.} =
   when compileOption("boundChecks"):
     assert t.rank == shape.len
 
@@ -71,10 +77,12 @@ proc broadcastImpl*(t: var AnyTensor, shape: varargs[int]|MetadataArray) {.noSid
         strShape.add ' '
         strShape.add $i
       strShape.add ']'
-      raise newException(ValueError, "The broadcasted size of the tensor " & strShape &
+      raise newException(ValueError, "The broadcasted size of the tensor " &
+        strShape &
         ", must match existing size " & $t.shape & " for non-singleton dimension")
 
-proc broadcast2Impl*[T](a, b: AnyTensor[T], result: var tuple[a, b: AnyTensor[T]]) {.noSideEffect.}=
+proc broadcast2Impl*[T](a, b: AnyTensor[T], result: var tuple[a, b: AnyTensor[
+    T]]) {.noSideEffect.} =
   let rank = max(a.rank, b.rank)
 
   var shapeA, stridesA, shapeB, stridesB = initMetadataArray(rank) # initialized with 0
@@ -115,7 +123,8 @@ proc broadcast2Impl*[T](a, b: AnyTensor[T], result: var tuple[a, b: AnyTensor[T]
   result.b.offset = b.offset
 
 
-proc exch_dim*[T](t: Tensor[T], dim1, dim2: int): Tensor[T] {.noInit,noSideEffect.}=
+proc exch_dim*[T](t: Tensor[T], dim1, dim2: int): Tensor[T] {.noInit,
+    noSideEffect.} =
   if dim1 == dim2:
     return
 
@@ -123,7 +132,22 @@ proc exch_dim*[T](t: Tensor[T], dim1, dim2: int): Tensor[T] {.noInit,noSideEffec
   swap(result.strides[dim1], result.strides[dim2])
   swap(result.shape[dim1], result.shape[dim2])
 
-proc permuteImpl*[T](result: var Tensor[T], dims: varargs[int]) {.noSideEffect.} =
+## In the while loop
+# Shape array          s0    s1    s2    s3
+# Permutation indices  3     0     1     2
+# Shape array          s3    s1    s2    s0
+# Permutation indices  -1    0     1     2
+# Shape array          s3    s1    s0    s2
+# Permutation indices  -1    0     1     -1
+# Shape array          s3    s0    s1    s2
+# Permutation indices  -1    0     -1    -1
+## Out of the while loop
+# Shape array          s3    s0    s1    s2
+# Permutation indices  -1    -1    -1    -1
+proc permuteImpl*[T](result: var Tensor[T], dims: varargs[int]) {.
+    noSideEffect.} =
+  assert dims.len == result.shape.len
+  assert dims.toHashSet == (0..<result.shape.len).toSeq.toHashSet
   var perm = dims.toMetadataArray
   for i, p in perm:
     if p != i and p != -1:
@@ -136,18 +160,24 @@ proc permuteImpl*[T](result: var Tensor[T], dims: varargs[int]) {.noSideEffect.}
       perm[j] = -1
 
 
+## Track changes in shape:
+# 1, 2, 1, 3, 4 | idx_real_dim = 0
+# 2, 2, 1, 3, 4 | idx_real_dim = 1
+# 2, 2, 1, 3, 4 | idx_real_dim = 1
+# 2, 3, 1, 3, 4 | idx_real_dim = 2
+# 2, 3, 4, 3, 4 | idx_real_dim = 3
 proc squeezeImpl*(t: var AnyTensor) {.noSideEffect.} =
   var idx_real_dim = 0
-
   for i in 0..<t.rank:
-    if t.shape[i] != 1:
+    {.noSideEffect.}: echo t.shape, " --- ", t.strides
+    if t.shape[i] != 1: 
       if i != idx_real_dim:
         t.shape[idx_real_dim] = t.shape[i]
         t.strides[idx_real_dim] = t.strides[i]
       inc idx_real_dim
-
   t.shape = t.shape[0..<idx_real_dim]
   t.strides = t.strides[0..<idx_real_dim]
+  {.noSideEffect.}: echo t.shape, " --- ", t.strides
 
 proc squeezeImpl*(t: var AnyTensor, axis: int) {.noSideEffect.} =
   when compileOption("boundChecks"):
