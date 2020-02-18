@@ -154,8 +154,8 @@ proc argmax_max*[T](t: Tensor[T], axis: int): tuple[indices: Tensor[int], maxes:
   ##     let a = [[0, 4, 7],
   ##              [1, 9, 5],
   ##              [3, 4, 1]].toTensor
-  ##     assert argmax(a, 0).indices == [[2, 1, 0]].toTensor
-  ##     assert argmax(a, 1).indices == [[2],
+  ##     assert argmax_max(a, 0).indices == [[2, 1, 0]].toTensor
+  ##     assert argmax_max(a, 1).indices == [[2],
   ##                                     [1],
   ##                                     [1]].toTensor
 

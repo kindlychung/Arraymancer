@@ -131,7 +131,6 @@ proc map*[T; U: not (ref|string|seq)](t: Tensor[T], f: T -> U): Tensor[U] {.noIn
   ## ``map`` is especially useful to do multiple element-wise operations on a tensor in a single loop over the data.
   ##
   ## For OpenMP compatibility, this ``map`` doesn't allow ref types as result like seq or string
-
   result = newTensorUninit[U](t.shape)
   result.apply2_inline(t, f(y))
 
@@ -141,7 +140,6 @@ proc map*[T; U: ref|string|seq](t: Tensor[T], f: T -> U): Tensor[U] {.noInit,noS
   ##
   ## This is a fallback for ref types as
   ## OpenMP will not work with if the results allocate memory managed by GC.
-
   result = newTensorUninit[U](t.shape)
   for i, val in enumerate(t):
     result.data[i] = f(val)

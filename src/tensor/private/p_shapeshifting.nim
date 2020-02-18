@@ -169,7 +169,6 @@ proc permuteImpl*[T](result: var Tensor[T], dims: varargs[int]) {.
 proc squeezeImpl*(t: var AnyTensor) {.noSideEffect.} =
   var idx_real_dim = 0
   for i in 0..<t.rank:
-    {.noSideEffect.}: echo t.shape, " --- ", t.strides
     if t.shape[i] != 1: 
       if i != idx_real_dim:
         t.shape[idx_real_dim] = t.shape[i]
@@ -177,7 +176,6 @@ proc squeezeImpl*(t: var AnyTensor) {.noSideEffect.} =
       inc idx_real_dim
   t.shape = t.shape[0..<idx_real_dim]
   t.strides = t.strides[0..<idx_real_dim]
-  {.noSideEffect.}: echo t.shape, " --- ", t.strides
 
 proc squeezeImpl*(t: var AnyTensor, axis: int) {.noSideEffect.} =
   when compileOption("boundChecks"):

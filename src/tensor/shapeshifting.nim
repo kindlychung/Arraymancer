@@ -254,7 +254,7 @@ func unsqueeze*(t: Tensor, axis: Natural): Tensor {.noInit.}=
   result.unsqueezeImpl(axis)
 
 proc stack*[T](tensors: varargs[Tensor[T]], axis: Natural = 0): Tensor[T] {.noInit.} =
-  ## Join a sequence of tensors along a new axis into a new tensor.
+  ## Join a sequence of tensors (of the same shape) along a new axis into a new tensor.
   ## Input:
   ##   - a tensor
   ##   - an axis (dimension)
