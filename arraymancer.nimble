@@ -1,11 +1,11 @@
 ### Package
-version       = "0.5.2"
+version       = "0.6.2"
 author        = "Mamy André-Ratsimbazafy"
 description   = "A n-dimensional tensor (ndarray) library"
 license       = "Apache License 2.0"
 
 ### Dependencies
-requires "nim >= 0.20.0",
+requires "nim >= 1.0.0",
   "nimblas >= 0.2.2",
   "nimlapack >= 0.1.1",
   "nimcuda >= 0.1.4",
@@ -67,29 +67,33 @@ template mkl_singleSwitches(switches: var string) =
 # NVCC config
 template cudaSwitches(switches: var string) =
   switches.add " --cincludes:/opt/cuda/include"
-  switches.add " --cc:gcc" # We trick Nim about nvcc being gcc, pending https://github.com/nim-lang/Nim/issues/6372
-  switches.add " --gcc.exe:/opt/cuda/bin/nvcc"
-  switches.add " --gcc.linkerexe:/opt/cuda/bin/nvcc"
-  switches.add " --gcc.cpp.exe:/opt/cuda/bin/nvcc"
-  switches.add " --gcc.cpp.linkerexe:/opt/cuda/bin/nvcc"
+  switches.add " --cc:clang" # We trick Nim about nvcc being clang, pending https://github.com/nim-lang/Nim/issues/6372
+  switches.add " --clang.exe:/opt/cuda/bin/nvcc"
+  switches.add " --clang.linkerexe:/opt/cuda/bin/nvcc"
+  switches.add " --clang.cpp.exe:/opt/cuda/bin/nvcc"
+  switches.add " --clang.cpp.linkerexe:/opt/cuda/bin/nvcc"
   # Due to the __ldg intrinsics in kernels
   # we only support compute capabilities 3.5+
   # See here: http://docs.nvidia.com/cuda/pascal-compatibility-guide/index.html
   # And wikipedia for GPU capabilities: https://en.wikipedia.org/wiki/CUDA
-  switches.add " --gcc.options.always:\"-arch=sm_61 --x cu\"" # Interpret .c files as .cu
-  switches.add " --gcc.cpp.options.always:\"-arch=sm_61 --x cu -Xcompiler -fpermissive\"" # Interpret .c files as .cu, gate fpermissive behind Xcompiler
+
+  # Note: the switches below might conflict with nim.cfg
+  # switches.add " --gcc.options.always:\"-arch=sm_61 --x cu\"" # Interpret .c files as .cu
+  # switches.add " --gcc.cpp.options.always:\"-arch=sm_61 --x cu -Xcompiler -fpermissive\"" # Interpret .c files as .cu, gate fpermissive behind Xcompiler
   switches.add " -d:cudnn"
 
 template cuda_mkl_openmp(switches: var string) =
   switches.mkl_threadedSwitches()
   switches.add " --cincludes:/opt/cuda/include"
-  switches.add " --cc:gcc" # We trick Nim about nvcc being gcc, pending https://github.com/nim-lang/Nim/issues/6372
-  switches.add " --gcc.exe:/opt/cuda/bin/nvcc"
-  switches.add " --gcc.linkerexe:/opt/cuda/bin/nvcc"
-  switches.add " --gcc.cpp.exe:/opt/cuda/bin/nvcc"
-  switches.add " --gcc.cpp.linkerexe:/opt/cuda/bin/nvcc"
-  switches.add " --gcc.options.always:\"-arch=sm_61 --x cu -Xcompiler -fopenmp -Xcompiler -march=native\""
-  switches.add " --gcc.cpp.options.always:\"-arch=sm_61 --x cu -Xcompiler -fopenmp -Xcompiler -march=native\""
+  switches.add " --cc:clang" # We trick Nim about nvcc being clang, pending https://github.com/nim-lang/Nim/issues/6372
+  switches.add " --clang.exe:/opt/cuda/bin/nvcc"
+  switches.add " --clang.linkerexe:/opt/cuda/bin/nvcc"
+  switches.add " --clang.cpp.exe:/opt/cuda/bin/nvcc"
+  switches.add " --clang.cpp.linkerexe:/opt/cuda/bin/nvcc"
+
+  # Note: the switches below might conflict with nim.cfg
+  # switches.add " --gcc.options.always:\"-arch=sm_61 --x cu -Xcompiler -fopenmp -Xcompiler -march=native\""
+  # switches.add " --gcc.cpp.options.always:\"-arch=sm_61 --x cu -Xcompiler -fopenmp -Xcompiler -march=native\""
 
 # Clang config - make sure Clang supports your CUDA SDK version
 # https://gist.github.com/ax3l/9489132
@@ -145,22 +149,41 @@ task all_tests, "Run all tests - Intel MKL + Cuda + OpenCL + OpenMP":
   switches.cuda_mkl_openmp()
   test "full_test_suite", switches, split=false, lang="cpp"
 
+# Split tests are unnecessary after 1.0.0 (no more 3GB+ memory used when compiling)
+#
+# task test, "Run all tests - Default BLAS & Lapack":
+#   test "tests_tensor_part01", "", split = true
+#   test "tests_tensor_part02", "", split = true
+#   test "tests_tensor_part03", "", split = true
+#   test "tests_tensor_part04", "", split = true
+#   test "tests_tensor_part05", "", split = true
+#   test "tests_cpu_remainder", "", split = true
+#
+# task test_no_lapack, "Run all tests - Default BLAS without lapack":
+#   let switch = " -d:no_lapack"
+#   test "tests_tensor_part01", switch, split = true
+#   test "tests_tensor_part02", switch, split = true
+#   test "tests_tensor_part03", switch, split = true
+#   test "tests_tensor_part04", switch, split = true
+#   test "tests_tensor_part05", switch, split = true
+#   test "tests_cpu_remainder", switch, split = true
+
 task test, "Run all tests - Default BLAS & Lapack":
-  test "tests_tensor_part01", "", split = true
-  test "tests_tensor_part02", "", split = true
-  test "tests_tensor_part03", "", split = true
-  test "tests_tensor_part04", "", split = true
-  test "tests_tensor_part05", "", split = true
-  test "tests_cpu_remainder", "", split = true
+  test "tests_cpu", "", split = false
+
+task test_arc, "Run all tests under ARC - Default BLAS & Lapack":
+  test "tests_cpu", "--gc:arc", split = false
+
+task test_orc, "Run all tests under ORC - Default BLAS & Lapack":
+  test "tests_cpu", "--gc:orc", split = false
 
 task test_no_lapack, "Run all tests - Default BLAS without lapack":
   let switch = " -d:no_lapack"
-  test "tests_tensor_part01", switch, split = true
-  test "tests_tensor_part02", switch, split = true
-  test "tests_tensor_part03", switch, split = true
-  test "tests_tensor_part04", switch, split = true
-  test "tests_tensor_part05", switch, split = true
-  test "tests_cpu_remainder", switch, split = true
+  test "tests_cpu", switch, split = false
+
+task test_no_lapack_arc, "Run all tests - Default BLAS without lapack under ARC":
+  let switch = " -d:no_lapack --gc:arc"
+  test "tests_cpu", switch, split = false
 
 task test_cpp, "Run all tests - Cpp codegen":
   test "tests_cpu", "", split = false, "cpp"
@@ -216,88 +239,36 @@ task test_mkl_omp, "Run all tests - Intel MKL + OpenMP":
 task test_release, "Run all tests - Release mode":
   test "tests_cpu", " -d:release"
 
-task gen_doc, "Generate Arraymancer documentation":
-  # TODO: Industrialize: something more robust that only check nim files (and not .DS_Store ...)
-  for filePath in listFiles("src/tensor/"):
-    let modName = filePath[11..^5] # Removing src/tensor/ (11 chars) and .nim (4 chars) # TODO: something more robust
-    # Cuda doc is broken https://github.com/nim-lang/Nim/issues/6910
-    # Delete doc comment from nimcuda before using this
-    exec r"nim doc -o:docs/build/tensor." & modName & ".html " & filePath
+task test_arc_release, "Run all tests under ARC - Release mode":
+  test "tests_cpu", " -d:release --gc:arc"
 
-  for filePath in listFiles("src/nn_primitives/"):
-    let modName = filePath[18..^5] # Removing src/nn_primitives/ (18 chars) and .nim (4 chars) # TODO: something more robust
-    # Cuda doc is broken https://github.com/nim-lang/Nim/issues/6910
-    # Delete doc comment from nimcuda before using this
-    exec r"nim doc -o:docs/build/nnp." & modName & ".html " & filePath
+task test_orc_release, "Run all tests under ORC - Release mode":
+  test "tests_cpu", " -d:release --gc:orc"
 
-  for filePath in listFiles("src/autograd/"):
-    let modName = filePath[13..^5] # Removing src/autograd/ (13 chars) and .nim (4 chars) # TODO: something more robust
-    exec r"nim doc -o:docs/build/ag." & modName & ".html " & filePath
+template canImport(x: untyped): untyped =
+  compiles:
+    import x
 
-  for filePath in listFiles("src/nn/"):
-    let modName = filePath[7..^5] # Removing src/nn_primitives/ (18 chars) and .nim (4 chars) # TODO: something more robust
-    exec r"nim doc -o:docs/build/nn." & modName & ".html " & filePath
-
-  # TODO auto check subdir
-  for filePath in listFiles("src/nn/activation/"):
-    let modName = filePath[18..^5]
-    exec r"nim doc -o:docs/build/nn_activation." & modName & ".html " & filePath
-
-  for filePath in listFiles("src/nn/layers/"):
-    let modName = filePath[14..^5]
-    exec r"nim doc -o:docs/build/nn_layers." & modName & ".html " & filePath
-
-  for filePath in listFiles("src/nn/loss/"):
-    let modName = filePath[12..^5]
-    exec r"nim doc -o:docs/build/nn_loss." & modName & ".html " & filePath
-
-  for filePath in listFiles("src/nn/optimizers/"):
-    let modName = filePath[18..^5]
-    exec r"nim doc -o:docs/build/nn_optimizers." & modName & ".html " & filePath
-
-  for filePath in listFiles("src/nn_dsl/"):
-    let modName = filePath[11..^5]
-    exec r"nim doc -o:docs/build/nn_dsl." & modName & ".html " & filePath
-
-  for filePath in listFiles("src/linear_algebra/"):
-    let modName = filePath[19..^5]
-    exec r"nim doc -o:docs/build/la." & modName & ".html " & filePath
-
-  for filePath in listFiles("src/stats/"):
-    let modName = filePath[10..^5]
-    exec r"nim doc -o:docs/build/stats." & modName & ".html " & filePath
-
-  for filePath in listFiles("src/ml/clustering/"):
-    let modName = filePath[18..^5]
-    exec r"nim doc -o:docs/build/ml." & modName & ".html " & filePath
-
-  for filePath in listFiles("src/ml/dimensionality_reduction/"):
-    let modName = filePath[32..^5]
-    exec r"nim doc -o:docs/build/ml." & modName & ".html " & filePath
-
-  for filePath in listFiles("src/ml/metrics/"):
-    let modName = filePath[15..^5]
-    exec r"nim doc -o:docs/build/ml." & modName & ".html " & filePath
-
-  block:
-    let filePath = "src/nlp/tokenizers.nim"
-    let modName = filePath[8..^5]
-    exec r"nim doc -o:docs/build/nlp." & modName & ".html " & filePath
-
-  for filePath in listFiles("src/io/"):
-    let modName = filePath[7..^5]
-    exec r"nim doc -o:docs/build/io." & modName & ".html " & filePath
-
-  for filePath in listFiles("src/datasets/"):
-    let modName = filePath[13..^5]
-    exec r"nim doc -o:docs/build/datasets." & modName & ".html " & filePath
-
-  # Process the rst
-  for filePath in listFiles("docs/"):
-    if filePath[^4..^1] == ".rst":
-      let modName = filePath[5..^5]
-      exec r"nim rst2html -o:docs/build/" & modName & ".html " & filePath
-
-  # Copy stylesheets
-  cpFile("docs/docutils.css", "docs/build/docutils.css")
-  cpFile("docs/nav.css", "docs/build/nav.css")
+when canImport(docs / docs):
+  # can define the `gen_docs` task (docs already imported now)
+  # this is to hack around weird nimble + nimscript behavior.
+  # when overwriting an install nimble will try to parse the generated
+  # nimscript file and for some reason then it won't be able to import
+  # the module (even if it's put into `src/`).
+  task gen_docs, "Generate Arraymancer documentation":
+    # generate nimdoc.cfg file so we can generate the correct header for the
+    # index.html page without having to mess with the HTML manually.
+    genNimdocCfg("src/arraymancer/")
+    # build the actual docs and the index
+    buildDocs(
+      "src/arraymancer/", "docs/build",
+      defaultFlags = "--hints:off --warnings:off"
+    )
+    # Copy our stylesheets
+    cpFile("docs/docutils.css", "docs/build/docutils.css")
+    cpFile("docs/nav.css", "docs/build/nav.css")
+    # Process the rst
+    for filePath in listFiles("docs/"):
+      if filePath[^4..^1] == ".rst":
+        let modName = filePath[5..^5]
+        exec r"nim rst2html -o:docs/build/" & modName & ".html " & filePath

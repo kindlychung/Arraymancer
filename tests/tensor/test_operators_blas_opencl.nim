@@ -13,10 +13,10 @@
 # limitations under the License.
 
 # Please compile with -d:opencl switch
-import ../../src/arraymancer
+import ../../src/arraymancer, ../testutils
 import unittest
 
-suite "OpenCL BLAS operations (Basic Linear Algebra Subprograms)":
+testSuite "OpenCL BLAS operations (Basic Linear Algebra Subprograms)":
   test "GEMM - General Matrix to Matrix Multiplication":
     ## TODO: test with slices
     let a = [[1.0,2,3],
@@ -100,7 +100,7 @@ suite "OpenCL BLAS operations (Basic Linear Algebra Subprograms)":
   test "GEMM - Bounds checking":
     let c = @[@[1'f32,2,3],@[4'f32,5,6]].toTensor().opencl()
 
-    expect(IndexError):
+    expect(IndexDefect):
       discard c * c
 
   test "GEMV - General Matrix to Vector Multiplication - float32":

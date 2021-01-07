@@ -1,6 +1,6 @@
-==============================
+============================================
 Spellbook: How to do a multilayer perceptron
-==============================
+============================================
 
 .. code:: nim
 
@@ -60,7 +60,7 @@ Spellbook: How to do a multilayer perceptron
 
         echo "Epoch is:" & $epoch
         echo "Batch id:" & $batch_id
-        echo "Loss is:" & $loss.value.data[0]
+        echo "Loss is:" & $loss.value
 
         # Compute the gradient (i.e. contribution of each parameter to the loss)
         loss.backprop()

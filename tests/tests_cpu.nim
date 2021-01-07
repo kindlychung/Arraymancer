@@ -18,18 +18,23 @@ import ../src/arraymancer,
         ./tensor/test_operators_comparison,
         ./tensor/test_accessors,
         ./tensor/test_accessors_slicer,
+        ./tensor/test_selectors,
+        ./tensor/test_fancy_indexing,
         ./tensor/test_display,
         ./tensor/test_operators_blas,
         ./tensor/test_math_functions,
         ./tensor/test_higherorder,
         ./tensor/test_aggregate,
+        ./tensor/test_algorithms,
         ./tensor/test_shapeshifting,
         ./tensor/test_broadcasting,
         ./tensor/test_ufunc,
         ./tensor/test_filling_data,
         ./tensor/test_optimization,
+        ./tensor/test_optim_ops_fusion,
         ./tensor/test_exporting,
         ./tensor/test_einsum,
+        ./tensor/test_einsum_failed,
         ./io/test_csv,
         ./io/test_numpy,
         ./datasets/test_mnist,
@@ -45,7 +50,11 @@ import ../src/arraymancer,
         ./autograd/test_gate_hadamard,
         ./autograd/test_gate_shapeshifting,
         ./ml/test_metrics,
-        ./test_bugtracker
+        ./ml/test_clustering,
+        ./stats/test_stats,
+        ./stats/test_distributions,
+        ./test_bugtracker,
+        ./test_indep_import
 
 when not defined(windows) and not sizeof(int) == 4:
   # STB image does not work on windows 32-bit, https://github.com/mratsim/Arraymancer/issues/358
@@ -53,8 +62,7 @@ when not defined(windows) and not sizeof(int) == 4:
 
 when not defined(no_lapack):
   import ./linear_algebra/test_linear_algebra,
-        ./ml/test_dimensionality_reduction,
-        ./ml/test_clustering
+        ./ml/test_dimensionality_reduction
 
 import  ./stability_tests/test_stability_openmp,
         # /end_to_end/examples_compile

@@ -13,11 +13,11 @@
 # limitations under the License.
 
 
-import ../../src/arraymancer
+import ../../src/arraymancer, ../testutils
 import unittest, math
 
 
-suite "CUDA: Testing indexing and slice syntax":
+testSuite "CUDA: Testing indexing and slice syntax":
   const
     a = @[1, 2, 3, 4, 5]
     b = @[1, 2, 3, 4, 5]
@@ -134,7 +134,7 @@ suite "CUDA: Testing indexing and slice syntax":
 
   when compileOption("boundChecks") and not defined(openmp):
     test "Slice from the end - expect non-negative step error - foo[^1..0, 3]":
-      expect(IndexError):
+      expect(IndexDefect):
         discard t_van[^1..0, 3]
   else:
     echo "Bound-checking is disabled or OpenMP is used. The non-negative step test has been skipped."

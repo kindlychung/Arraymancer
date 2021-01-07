@@ -12,12 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import ../../src/arraymancer
+import ../../src/arraymancer, ../testutils
 import unittest, sequtils
 
-suite "Optimization":
-  test "Test if contiguous slices are detected as contiguous":
-    let a = [[1, 2, 3, 4, 5],
-            [6, 7, 8, 9, 10]].toTensor
+proc main() =
+  suite "Optimization":
+    test "Test if contiguous slices are detected as contiguous":
+      let a = [[1, 2, 3, 4, 5],
+              [6, 7, 8, 9, 10]].toTensor
 
-    check: a[1, 2..3].isContiguous == true
+      check: a[1, 2..3].isContiguous == true
+
+
+main()
+GC_fullCollect()
